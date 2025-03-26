@@ -24,7 +24,7 @@ const login = async () => {
   try {
     const response = await api.login({ email: email.value, password: password.value });
     localStorage.setItem('token', response.data.token);
-    await router.push({ name: 'Home' });
+    localStorage.setItem('email', email.value);
   } catch (error) {
     console.log(error);
     if (error.response && error.response.data && error.response.data.detail) {
@@ -33,5 +33,6 @@ const login = async () => {
       errorMessage.value = 'An error occurred. Please try again.';
     }
   }
+  await router.push({ name: 'Home' });
 };
 </script>

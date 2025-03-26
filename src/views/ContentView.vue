@@ -1,40 +1,87 @@
 <template>
-  <div>
-    <h1>{{ content.title }}</h1>
-    <img :src="content.img" alt="content image" />
-    <p>{{ content.content }}</p>
-    <div v-for="comment in comments" :key="comment.uuid">
-      <p>{{ comment.content }}</p>
-    </div>
-    <div v-if="isAuthenticated">
-      <textarea v-model="newComment"></textarea>
-      <button @click="postComment">Post Comment</button>
-    </div>
-  </div>
-</template>
+        <div v-if="content">
+          <div class="post-card">
+            <div class="post-header d-flex align-items-center p-3">
+              <a :href="`/profile/${content.author}`">
+                <img src="@/assets/avatar.png" alt="User Avatar" class="rounded-circle me-2" style="width: 30px; height: 30px;">
+              </a>
+              <span class="fw-bold">{{ authorEmail }}</span>
+            </div>
+            <img :src="content.img ? `https://localhost${content.img}` : '@/assets/placeholder.png'" class="post-image" alt="Post Image">
+            <div class="post-content p-3">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <span class="fw-bold">{{ authorEmail }} : </span>
+                  <span class="post-description">{{ content.content }}</span>
+                </div>
+                <button @click="toggleComments" class="btn btn-link p-0 text-decoration-none text-muted">
+                  Voir les {{ content.comments.length }} commentaires
+                </button>
+              </div>
+              <Comment v-if="showComments" :slug="content.slug" :commentUrls="content.comments" @commentPosted="refreshContent" />
+            </div>
+            <hr class="my-0 border-secondary">
+          </div>
+        </div>
+        <div v-else>
+          <p>Error: Content not available</p>
+        </div>
+      </template>
 
-<script setup>
-import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
-import api from '../services/api';
+      <script setup>
+      import { ref, onMounted } from 'vue';
+      import api from '../services/api';
+      import Comment from '../components/Comment.vue';
 
-const route = useRoute();
-const content = ref({});
-const comments = ref([]);
-const newComment = ref('');
-const isAuthenticated = !!localStorage.getItem('token');
+      const props = defineProps({
+        slug: {
+          type: String,
+          required: true
+        }
+      });
 
-onMounted(async () => {
-  const response = await api.getContent(route.params.slug);
-  content.value = response.data;
-  const commentsResponse = await api.getComments();
-  comments.value = commentsResponse.data.member;
-});
+      const content = ref(null);
+      const showComments = ref(false);
+      const authorEmail = ref('');
 
-const postComment = async () => {
-  await api.createComment({ content: newComment.value, contentId: content.value.uuid });
-  newComment.value = '';
-  const commentsResponse = await api.getComments();
-  comments.value = commentsResponse.data.member;
-};
-</script>
+      const toggleComments = () => {
+        showComments.value = !showComments.value;
+      };
+
+      const refreshContent = async () => {
+        try {
+          const response = await api.getContent(props.slug);
+          content.value = response.data;
+          const userResponse = await api.getUser(content.value.author);
+          authorEmail.value = userResponse.data.email;
+        } catch (error) {
+          console.error('Error refreshing content:', error);
+        }
+      };
+
+      onMounted(async () => {
+        await refreshContent();
+      });
+      </script>
+
+      <style scoped>
+      .post-card {
+        background-color: #121212;
+        border-radius: 0;
+        margin-bottom: 10px;
+      }
+
+      .post-image {
+        width: 100%;
+        height: auto;
+      }
+
+      .post-content {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .post-description {
+        margin-bottom: 10px;
+      }
+      </style>
