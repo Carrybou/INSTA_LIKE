@@ -60,4 +60,7 @@ export default {
   getUser(uuid) {
     return apiClientJson.get(`${uuid}`);
   },
+  getUsers() {
+    return apiClientLdJson.get('/api/users');
+  },
 };

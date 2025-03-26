@@ -1,37 +1,40 @@
 <template>
-            <div>
-              <nav class="navbar navbar-dark bg-dark">
-                <div class="container">
-                  <a class="navbar-brand" href="#">InstaLike</a>
-                  <i v-if="isAuthenticated" @click="navigateToPost" class="fas fa-plus text-light" style="cursor: pointer;"></i>
+  <div>
+    <nav class="navbar navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="#">InstaLike</a>
+        <i v-if="isAuthenticated" @click="navigateToPost" class="fas fa-plus text-light" style="cursor: pointer;"></i>
 
-                  <div>
-                    <button v-if="!isAuthenticated" @click="navigateToLogin" class="btn btn-outline-light me-2">Login</button>
-                    <button v-if="!isAuthenticated" @click="navigateToRegister" class="btn btn-outline-light me-2">Register</button>
-                    <span v-if="isAuthenticated" class="text-light me-2">{{ userEmail }}</span>
-                    <button v-if="isAuthenticated" @click="navigateToLogout" class="btn btn-outline-light me-2">Logout</button>
-                  </div>
-                </div>
-              </nav>
+        <div>
+          <button v-if="!isAuthenticated" @click="navigateToLogin" class="btn btn-outline-light me-2">Login</button>
+          <button v-if="!isAuthenticated" @click="navigateToRegister" class="btn btn-outline-light me-2">Register</button>
+          <span v-if="isAuthenticated" class="text-light me-2">{{ userEmail }}</span>
+          <button v-if="isAuthenticated" @click="navigateToLogout" class="btn btn-outline-light me-2">Logout</button>
+        </div>
+      </div>
+    </nav>
 
+    <div class="container mt-3">
+      <div class="row">
+        <div class="col-12 col-md-8 offset-md-2 d-flex align-items-center">
+          <div class="search-bar">
+            <i class="fas fa-search search-icon"></i>
+            <input v-model="searchQuery" @input="filterContents" type="text" class="form-control search-input" placeholder="Recherche par auteur ou description">
+          </div>
+          <span @click="toggleSortOrder" :class="['sort-icon', sortOrder]" class="fas fa-sort"></span>
+        </div>
+      </div>
+    </div>
 
-              <div class="container mt-3">
-                <div class="row">
-                  <div class="col-12 col-md-8 offset-md-2 d-flex align-items-center">
-                    <span @click="toggleSortOrder" :class="['sort-icon', sortOrder]" class="fas fa-sort"></span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="container content-container">
-                <div class="row">
-                  <div class="col-12 col-md-8 offset-md-2">
-                    <ContentView v-for="slug in sortedSlugs" :key="slug" :slug="slug" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </template>
+    <div class="container content-container">
+      <div class="row">
+        <div class="col-12 col-md-8 offset-md-2">
+          <ContentView v-for="slug in filteredSlugs" :key="slug" :slug="slug" />
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
 
 <script setup>
 import { useRouter } from 'vue-router';
@@ -41,12 +44,18 @@ import ContentView from './ContentView.vue';
 
 const slugs = ref([]);
 const contents = ref([]);
+const users = ref([]);
 const sortOrder = ref('newest');
+const searchQuery = ref('');
 
 onMounted(async () => {
-  const response = await api.getContents();
-  contents.value = response.data.member;
+  const [contentsResponse, usersResponse] = await Promise.all([
+    api.getContents(),
+    api.getUsers()
+  ]);
+  contents.value = contentsResponse.data.member;
   slugs.value = contents.value.map(content => content.slug);
+  users.value = usersResponse.data.member;
 });
 
 const sortedSlugs = computed(() => {
@@ -59,6 +68,16 @@ const sortedSlugs = computed(() => {
       : new Date(contentA.Dcrt) - new Date(contentB.Dcrt);
   });
   return sorted;
+});
+
+const filteredSlugs = computed(() => {
+  const query = searchQuery.value.toLowerCase();
+  return sortedSlugs.value.filter(slug => {
+    const content = contents.value.find(content => content.slug === slug);
+    const author = users.value.find(user => user['@id'] === content.author);
+    return author?.email.toLowerCase().includes(query) || content.content.toLowerCase().includes(query);
+  });
+
 });
 
 const toggleSortOrder = () => {
@@ -104,10 +123,36 @@ const navigateToPost = () => {
   }
 }
 
+.search-bar {
+  position: relative;
+  width: 100%;
+}
+
+.search-icon {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+  color: #ccc;
+}
+
+.search-input {
+  background-color: #2c2c2c;
+  color: #fff;
+  padding-left: 35px;
+  border: none;
+}
+.search-input:focus {
+  outline: none;
+  box-shadow: none;
+  border:none;
+}
+
 .sort-icon {
   cursor: pointer;
   transition: transform 0.3s;
   color: #fff;
+  margin-left: 10px;
 }
 
 .sort-icon.newest {
